@@ -50,7 +50,7 @@ jobs:
           --source=dist
           --region=us-central1
           --timeout=530
-          --memory=2048MB
+          --memory=512MB
           --runtime=nodejs16
           --trigger-http
           --no-user-output-enabled
