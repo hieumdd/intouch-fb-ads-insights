@@ -1,6 +1,5 @@
-import { runPipeline } from './pipeline.service';
-import { ACCOUNTS, accountService, taskService } from './account.service';
 import { CAMPAIGN_INSIGHTS } from './pipeline.const';
+import { runPipeline } from './pipeline.service';
 
 it('pipeline', async () => {
     return runPipeline(
