@@ -5,8 +5,8 @@ it('pipeline', async () => {
     return runPipeline(
         {
             accountId: '2304291883206771',
-            start: '2023-01-01',
-            end: '2023-02-01',
+            start: '2023-04-01',
+            end: '2023-05-01',
         },
         CAMPAIGN_INSIGHTS,
     )

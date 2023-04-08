@@ -1,5 +1,5 @@
+import { Readable } from 'node:stream';
 import { setTimeout } from 'node:timers/promises';
-
 import axios from 'axios';
 
 import { getClient } from './api.service';
@@ -35,7 +35,7 @@ type InsightsResponse = {
 export const get = async (
     { accountId, start: since, end: until }: ReportOptions,
     { level, fields, breakdowns }: InsightsOptions,
-): Promise<InsightsData> => {
+): Promise<Readable> => {
     const client = await getClient();
 
     const requestReport = async (): Promise<string> => {
@@ -72,22 +72,34 @@ export const get = async (
         return pollReport(reportId);
     };
 
-    const getInsights = async (reportId: string): Promise<InsightsData> => {
-        const _getInsights = async (after?: string): Promise<InsightsData> => {
-            const data = await client
-                .request<InsightsResponse>({
-                    method: 'GET',
-                    url: `/${reportId}/insights`,
-                    params: { after, limit: 500 },
-                })
-                .then((res) => res.data);
+    const getInsights = (reportId: string): Readable => {
+        const stream = new Readable({ objectMode: true, read: () => {} });
 
-            return data.paging.next
-                ? [...data.data, ...(await _getInsights(data.paging.cursors.after))]
-                : data.data;
+        const _getInsights = async (after?: string) => {
+            try {
+                const data = await client
+                    .request<InsightsResponse>({
+                        method: 'GET',
+                        url: `/${reportId}/insights`,
+                        params: { after, limit: 500 },
+                    })
+                    .then((res) => res.data);
+
+                data.data.forEach((row) => stream.push(row));
+
+                if (data.paging.next) {
+                    _getInsights(data.paging.cursors.after);
+                } else {
+                    stream.push(null);
+                }
+            } catch (error) {
+                stream.emit('error', error);
+            }
         };
 
-        return _getInsights();
+        _getInsights();
+
+        return stream;
     };
 
     return requestReport()
