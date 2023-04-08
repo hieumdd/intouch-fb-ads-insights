@@ -1,18 +1,40 @@
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import Joi from 'joi';
+import ndjson from 'ndjson';
 
-import { load } from '../bigquery/bigquery.service';
+import { createLoadStream } from '../bigquery/bigquery.service';
 import { createTasks } from '../task/cloud-tasks.service';
 import { getAccounts } from './account.service';
 import { ReportOptions, get } from './insights.service';
 import * as pipelines from './pipeline.const';
 
-export const runPipeline = async (reportOptions: ReportOptions, pipeline: pipelines.Pipeline) => {
-    return get(reportOptions, pipeline.insightsOptions)
-        .then((rows) => rows.map((row) => Joi.attempt(row, pipeline.validationSchema)))
-        .then((data) => {
-            const table = `${pipeline.name}__${reportOptions.accountId}`;
-            return load(data, { table, schema: pipeline.schema });
-        });
+dayjs.extend(utc);
+
+export const runPipeline = async (reportOptions: ReportOptions, pipeline_: pipelines.Pipeline) => {
+    const stream = await get(reportOptions, pipeline_.insightsOptions);
+
+    await pipeline(
+        stream,
+        new Transform({
+            objectMode: true,
+            transform: (row, _, callback) => {
+                callback(null, {
+                    ...Joi.attempt(row, pipeline_.validationSchema),
+                    _batched_at: dayjs().toISOString(),
+                });
+            },
+        }),
+        ndjson.stringify(),
+        createLoadStream({
+            table: `p_${pipeline_.name}__${reportOptions.accountId}`,
+            schema: [...pipeline_.schema, { name: '_batched_at', type: 'TIMESTAMP' }],
+        }),
+    );
+
+    return true;
 };
 
 export type CreatePipelineTasksOptions = {
