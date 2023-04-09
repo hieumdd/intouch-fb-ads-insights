@@ -17,5 +17,7 @@ export const getAccounts = async () => {
                 })
                 .then((response) => response.data.data);
         }),
-    ).then((accountGroups) => accountGroups.flatMap((accounts) => accounts.map(({ id }) => id)));
+    ).then((accountGroups) =>
+        accountGroups.flatMap((accounts) => accounts.map(({ account_id }) => account_id)),
+    );
 };

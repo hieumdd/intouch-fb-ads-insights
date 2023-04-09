@@ -2,7 +2,7 @@ import { CloudTasksClient, protos } from '@google-cloud/tasks';
 import HttpMethod = protos.google.cloud.tasks.v2.HttpMethod;
 import { v4 as uuidv4 } from 'uuid';
 
-const PROJECT = 'intouch-fb-ads-insights';
+const PROJECT = 'intouch-vet';
 const LOCATION = 'us-central1';
 const QUEUE = 'fb-ads-insights';
 
