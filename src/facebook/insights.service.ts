@@ -10,35 +10,23 @@ export type ReportOptions = {
     end: string;
 };
 
-export type InsightsOptions = {
+export type InsightsConfig = {
     level: string;
     fields: string[];
     breakdowns?: string;
 };
 
-type RequestReportResponse = {
-    report_run_id: string;
-};
-
-type ReportStatusResponse = {
-    async_percent_completion: number;
-    async_status: string;
-};
-
-type InsightsData = Record<string, any>[];
-
-type InsightsResponse = {
-    data: InsightsData;
-    paging: { cursors: { after: string }; next: string };
-};
-
-export const get = async (
-    { accountId, start: since, end: until }: ReportOptions,
-    { level, fields, breakdowns }: InsightsOptions,
-): Promise<Readable> => {
+export const get = async (options: ReportOptions, config: InsightsConfig): Promise<Readable> => {
     const client = await getClient();
 
+    type RequestReportResponse = {
+        report_run_id: string;
+    };
+
     const requestReport = async (): Promise<string> => {
+        const { accountId, start: since, end: until } = options;
+        const { level, fields, breakdowns } = config;
+
         return client
             .request<RequestReportResponse>({
                 method: 'POST',
@@ -52,6 +40,11 @@ export const get = async (
                 },
             })
             .then(({ data }) => data.report_run_id);
+    };
+
+    type ReportStatusResponse = {
+        async_percent_completion: number;
+        async_status: string;
     };
 
     const pollReport = async (reportId: string): Promise<string> => {
@@ -70,6 +63,11 @@ export const get = async (
         await setTimeout(10_000);
 
         return pollReport(reportId);
+    };
+
+    type InsightsResponse = {
+        data: Record<string, any>[];
+        paging: { cursors: { after: string }; next: string };
     };
 
     const getInsights = (reportId: string): Readable => {
