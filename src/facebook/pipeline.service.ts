@@ -14,7 +14,7 @@ import * as pipelines from './pipeline.const';
 dayjs.extend(utc);
 
 export const runPipeline = async (reportOptions: ReportOptions, pipeline_: pipelines.Pipeline) => {
-    const stream = await get(reportOptions, pipeline_.insightsOptions);
+    const stream = await get(reportOptions, pipeline_.insightsConfig);
 
     await pipeline(
         stream,
@@ -45,9 +45,9 @@ export type CreatePipelineTasksOptions = {
 export const createPipelineTasks = async ({ start, end }: CreatePipelineTasksOptions) => {
     return getAccounts()
         .then((accounts) => {
-            return Object.keys(pipelines).flatMap((pipeline) =>
-                accounts.map((accountId) => ({ accountId, start, end, pipeline })),
-            );
+            return Object.keys(pipelines).flatMap((pipeline) => {
+                return accounts.map((accountId) => ({ accountId, start, end, pipeline }));
+            });
         })
         .then((data) => createTasks(data, (task) => [task.pipeline, task.accountId].join('-')));
 };

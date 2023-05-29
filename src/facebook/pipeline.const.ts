@@ -1,10 +1,10 @@
 import Joi from 'joi';
 
-import { InsightsOptions } from './insights.service';
+import { InsightsConfig } from './insights.service';
 
 export type Pipeline = {
     name: string;
-    insightsOptions: InsightsOptions;
+    insightsConfig: InsightsConfig;
     validationSchema: Joi.Schema;
     schema: Record<string, any>[];
 };
@@ -15,7 +15,7 @@ const actionBreakdownSchema = Joi.array()
 
 export const CAMPAIGN_INSIGHTS: Pipeline = {
     name: 'CampaignInsights',
-    insightsOptions: {
+    insightsConfig: {
         level: 'campaign',
         fields: [
             'date_start',
