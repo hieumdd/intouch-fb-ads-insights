@@ -15,7 +15,9 @@ export const getAccounts = async () => {
                     params: { limit: 500 },
                     url: `/${BUSINESS_ID}/${edge}`,
                 })
-                .then((response) => response.data.data);
+                .then((response) => {
+                    return response.data.data;
+                });
         }),
     ).then((accountGroups) => {
         return accountGroups.flatMap((accounts) => accounts.map(({ account_id }) => account_id));
