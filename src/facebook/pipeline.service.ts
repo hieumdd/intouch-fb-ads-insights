@@ -1,4 +1,4 @@
-import { Transform } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -23,7 +23,7 @@ export const runPipeline = async (reportOptions: ReportOptions, pipeline_: pipel
             transform: (row, _, callback) => {
                 callback(null, {
                     ...Joi.attempt(row, pipeline_.validationSchema),
-                    _batched_at: dayjs().toISOString(),
+                    _batched_at: dayjs.utc().toISOString(),
                 });
             },
         }),
@@ -31,6 +31,7 @@ export const runPipeline = async (reportOptions: ReportOptions, pipeline_: pipel
         createLoadStream({
             table: `p_${pipeline_.name}__${reportOptions.accountId}`,
             schema: [...pipeline_.schema, { name: '_batched_at', type: 'TIMESTAMP' }],
+            writeDisposition: 'WRITE_APPEND',
         }),
     );
 
@@ -43,11 +44,46 @@ export type CreatePipelineTasksOptions = {
 };
 
 export const createPipelineTasks = async ({ start, end }: CreatePipelineTasksOptions) => {
-    return getAccounts()
-        .then((accounts) => {
-            return Object.keys(pipelines).flatMap((pipeline) => {
-                return accounts.map((accountId) => ({ accountId, start, end, pipeline }));
+    const BUSINESSES = ['176030634338306', '301608467133745'];
+
+    const accounts = await Promise.all(
+        BUSINESSES.map((businessId) => {
+            return getAccounts(businessId).then((accounts) => {
+                return accounts.map((account) => ({ ...account, business_id: businessId }));
             });
-        })
-        .then((data) => createTasks(data, (task) => [task.pipeline, task.accountId].join('-')));
+        }),
+    ).then((accounts) => accounts.flat());
+
+    return Promise.all([
+        createTasks(
+            Object.keys(pipelines).flatMap((pipeline) => {
+                return accounts.map((account) => ({
+                    accountId: account.account_id,
+                    start,
+                    end,
+                    pipeline,
+                }));
+            }),
+            (task) => [task.pipeline, task.accountId].join('-'),
+        ),
+        pipeline(
+            Readable.from(
+                accounts.map((account) => ({
+                    account_name: account.name,
+                    account_id: account.account_id,
+                    business_id: account.business_id,
+                })),
+            ),
+            ndjson.stringify(),
+            createLoadStream({
+                table: `Accounts`,
+                schema: [
+                    { name: 'account_name', type: 'STRING' },
+                    { name: 'account_id', type: 'INT64' },
+                    { name: 'business_id', type: 'INT64' },
+                ],
+                writeDisposition: 'WRITE_TRUNCATE',
+            }),
+        ),
+    ]);
 };
